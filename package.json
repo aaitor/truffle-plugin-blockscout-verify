@@ -1,0 +1,40 @@
+{
+  "name": "truffle-plugin-blockscout-verify",
+  "version": "0.0.1",
+  "description": "Verify your deployed smart contracts on Blockscout from the Truffle CLI",
+  "repository": "https://github.com/aaitor/truffle-plugin-blockscout-verify",
+  "main": "verify.js",
+  "files": [
+    "constants.js",
+    "util.js",
+    "verify.js",
+    "truffle-plugin.json"
+  ],
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "eslint ."
+  },
+  "keywords": [
+    "truffle",
+    "plugin",
+    "ethereum",
+    "blockscout",
+    "verify"
+  ],
+  "author": "Aitor <aaitor@gmail.com>",
+  "license": "Apache Licence V2",
+  "dependencies": {
+    "axios": "^0.19.0",
+    "delay": "^4.3.0",
+    "querystring": "^0.2.0",
+    "sol-merger": "^1.0.1"
+  },
+  "devDependencies": {
+    "eslint": "^6.1.0",
+    "eslint-config-standard": "^13.0.1",
+    "eslint-plugin-import": "^2.18.2",
+    "eslint-plugin-node": "^9.1.0",
+    "eslint-plugin-promise": "^4.2.1",
+    "eslint-plugin-standard": "^4.0.0"
+  }
+}
