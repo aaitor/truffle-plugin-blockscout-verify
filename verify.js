@@ -22,9 +22,9 @@ module.exports = async (config) => {
       if (status === VerificationStatus.FAILED) {
         failedContracts.push(contractName)
       } else {
-        // Add link to verified contract on Etherscan
+        // Add link to verified contract on Blockscout
         const contractAddress = artifact.networks[`${options.networkId}`].address
-        const explorerUrl = `${EXPLORER_URLS[options.networkId]}/${contractAddress}#contracts`
+        const explorerUrl = `${EXPLORER_URLS[options.networkId]}/address/${contractAddress}/contracts`
         status += `: ${explorerUrl}`
       }
       console.log(status)

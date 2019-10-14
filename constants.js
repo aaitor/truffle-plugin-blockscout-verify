@@ -1,9 +1,11 @@
+const API_URLS = {
+  1: 'https://blockscout.com/eth/mainnet/',
+  1101: 'https://integration-blockscout.celo-testnet.org/'
+}
+
 const BLOCKSCOUT_URLS = {
-  1: 'https://etherscan.io/address',
-  3: 'https://ropsten.etherscan.io/address',
-  4: 'https://rinkeby.etherscan.io/address',
-  5: 'https://goerli.etherscan.io/address',
-  42: 'https://kovan.etherscan.io/address'
+  1: 'https://blockscout.com/eth/mainnet/',
+  1101: 'https://integration-blockscout.celo-testnet.org/'
 }
 
 const RequestStatus = {
@@ -19,6 +21,7 @@ const VerificationStatus = {
 }
 
 module.exports = {
+  API_URLS,
   BLOCKSCOUT_URLS,
   RequestStatus,
   VerificationStatus
