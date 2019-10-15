@@ -51,19 +51,25 @@ const parseConfig = (config) => {
   console.log(Object.getOwnPropertyNames(config))
   // Truffle handles network stuff, just need network_id
   const networkId = config.network_id
+  const networkName = config.network
   const apiUrl = API_URLS[networkId]
   enforce(apiUrl, `Blockscout has no support for network ${config.network} with id ${networkId}`)
 
   enforce(config._.length > 1, 'No contract name(s) specified')
 
   const workingDir = config.working_directory
-  const contractsBuildDir = config.contracts_build_directory
+  //const contractsBuildDir = config.contracts_build_directory
+  const contractsBuildDir = workingDir + `/build/${networkName}/contracts/`
   const optimizerSettings = config.compilers.solc.settings.optimizer
   const verifyPreamble = config.verify && config.verify.preamble
+
+  console.debug(`Contracts Build Dir ${contractsBuildDir}`)
+  console.debug(`Working Dir ${workingDir}`)
 
   return {
     apiUrl,
     networkId,
+    networkName,
     workingDir,
     contractsBuildDir,
     verifyPreamble,
@@ -83,7 +89,7 @@ const getArtifact = (contractName, options) => {
 const verifyContract = async (artifact, options) => {
   enforceOrThrow(
     artifact.networks && artifact.networks[`${options.networkId}`],
-    `No instance of contract ${artifact.contractName} found for network id ${options.networkId}`
+    `No instance of contract ${artifact.contractName} found for network id ${options.networkId} and network name ${options.networkName}`
   )
 
   const res = await sendVerifyRequest(artifact, options)

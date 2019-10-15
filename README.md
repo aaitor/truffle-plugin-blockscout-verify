@@ -46,8 +46,11 @@ This can take some time, and will eventually either return `Pass - Verified` or 
 ### Plugin Development
 
 During the development of the plugin, you can run it from the truffle folder running the following command:
+
 ```
-truffle exec /path/to/truffle-plugin-blockscout-verify/verify.js --network integration --compile
+npm link /path/to/truffle-plugin-blockscout-verify
+./node_modules/.bin/truffle run verify FixidityLib --network integration
+
 ```
 
 ### Adding Preamble (Optional)
