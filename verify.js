@@ -6,6 +6,10 @@ const fs = require('fs')
 const { enforce, enforceOrThrow } = require('./util')
 const { API_URLS, EXPLORER_URLS, RequestStatus, VerificationStatus } = require('./constants')
 
+// const curlirize = require('axios-curlirize')
+// // initializing axios-curlirize with your axios instance
+// curlirize(axios);
+
 module.exports = async (config) => {
   const options = parseConfig(config)
 
@@ -44,6 +48,7 @@ module.exports = async (config) => {
 }
 
 const parseConfig = (config) => {
+  console.log(Object.getOwnPropertyNames(config))
   // Truffle handles network stuff, just need network_id
   const networkId = config.network_id
   const apiUrl = API_URLS[networkId]
@@ -58,7 +63,6 @@ const parseConfig = (config) => {
 
   return {
     apiUrl,
-    apiKey,
     networkId,
     workingDir,
     contractsBuildDir,
@@ -83,7 +87,7 @@ const verifyContract = async (artifact, options) => {
   )
 
   const res = await sendVerifyRequest(artifact, options)
-  enforceOrThrow(res.data, `Failed to connect to Etherscan API at url ${options.apiUrl}`)
+  enforceOrThrow(res.data, `Failed to connect to Blockscout API at url ${options.apiUrl}`)
 
   if (res.data.result === VerificationStatus.ALREADY_VERIFIED) {
     return VerificationStatus.ALREADY_VERIFIED
@@ -98,31 +102,33 @@ const sendVerifyRequest = async (artifact, options) => {
   const mergedSource = await fetchMergedSource(artifact, options)
 
   const postQueries = {
-    apikey: options.apiKey,
-    module: 'contract',
-    action: 'verifysourcecode',
-    contractaddress: artifact.networks[`${options.networkId}`].address,
-    sourceCode: mergedSource,
-    contractname: artifact.contractName,
-    compilerversion: `v${artifact.compiler.version.replace('.Emscripten.clang', '')}`,
-    optimizationUsed: options.optimizationUsed,
-    runs: options.runs,
-    constructorArguements: encodedConstructorArgs
+    // module: 'contract',
+    // action: 'verifysourcecode',
+    addressHash: artifact.networks[`${options.networkId}`].address,
+    contractSourceCode: mergedSource,
+    name: artifact.contractName,
+    compilerVersion: `v${artifact.compiler.version.replace('.Emscripten.clang', '')}`,
+    optimization: !options.optimizationUsed,
+    optimizationRuns: options.runs,
+    constructorArguments: encodedConstructorArgs
   }
 
   // Link libraries as specified in the artifact
   const libraries = artifact.networks[`${options.networkId}`].links || {}
   Object.entries(libraries).forEach(([key, value], i) => {
-    enforceOrThrow(i < 10, 'Can not link more than 10 libraries with Etherscan API')
-    postQueries[`libraryname${i + 1}`] = key
-    postQueries[`libraryaddress${i + 1}`] = value
+    enforceOrThrow(i < 5, 'Can not link more than 5 libraries with Blockscout API')
+    postQueries[`library${i + 1}Name`] = key
+    postQueries[`library${i + 1}Address`] = value
   })
 
+  const verifyUrl = `${options.apiUrl}?module=contract&action=verify`
+  console.log(`url: ${verifyUrl}, options: ${querystring.stringify(postQueries)}`)
   try {
-    return axios.post(options.apiUrl, querystring.stringify(postQueries))
+    return axios.post(verifyUrl, querystring.stringify(postQueries))
   } catch (e) {
-    throw new Error(`Failed to connect to Etherscan API at url ${options.apiUrl}`)
+    throw new Error(`Failed to connect to Blockscout API at url ${verifyUrl}`)
   }
+  console.log("linea 127")
 }
 
 const fetchConstructorValues = async (artifact, options) => {
@@ -131,14 +137,14 @@ const fetchConstructorValues = async (artifact, options) => {
   // Fetch the contract creation transaction to extract the input data
   let res
   try {
+    // console.log(`${options.apiUrl}?module=account&action=txlist&address=${contractAddress}&page=1&sort=asc&offset=1`)
     res = await axios.get(
       `${options.apiUrl}?module=account&action=txlist&address=${contractAddress}&page=1&sort=asc&offset=1`
     )
   } catch (e) {
-    throw new Error(`Failed to connect to Etherscan API at url ${options.apiUrl}`)
+    throw new Error(`Failed to connect to Blockscout API at url ${options.apiUrl}`)
   }
   enforceOrThrow(res.data && res.data.status === RequestStatus.OK, 'Failed to fetch constructor arguments')
-
   // The last part of the transaction data is the constructor parameters
   return res.data.result[0].input.substring(artifact.bytecode.length)
 }
@@ -165,13 +171,13 @@ const verificationStatus = async (guid, options) => {
 
     try {
       const verificationResult = await axios.get(
-        `${options.apiUrl}?module=contract&action=checkverifystatus&apikey=${options.apiKey}&guid=${guid}`
+        `${options.apiUrl}?module=contract&action=checkverifystatus&guid=${guid}`
       )
       if (verificationResult.data.result !== VerificationStatus.PENDING) {
         return verificationResult.data.result
       }
     } catch (e) {
-      throw new Error(`Failed to connect to Etherscan API at url ${options.apiUrl}`)
+      throw new Error(`Failed to connect to Blockscout API at url ${options.apiUrl}`)
     }
   }
 }
