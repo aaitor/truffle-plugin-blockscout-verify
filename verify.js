@@ -60,6 +60,8 @@ const parseConfig = (config) => {
   const workingDir = config.working_directory
   //const contractsBuildDir = config.contracts_build_directory
   const contractsBuildDir = workingDir + `/build/${networkName}/contracts/`
+  if (!fs.statSync(contractsBuildDir).isDirectory())
+    contractsBuildDir = config.contracts_build_directory
   const optimizerSettings = config.compilers.solc.settings.optimizer
   const verifyPreamble = config.verify && config.verify.preamble
 
@@ -132,6 +134,7 @@ const sendVerifyRequest = async (artifact, options) => {
   try {
     return axios.post(verifyUrl, querystring.stringify(postQueries))
   } catch (e) {
+    console.debug(JSON.stringify(e));
     throw new Error(`Failed to connect to Blockscout API at url ${verifyUrl}`)
   }
   console.log("linea 127")
