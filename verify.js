@@ -135,6 +135,7 @@ const sendVerifyRequest = async (artifact, options) => {
     optimizationRuns: options.runs,
     constructorArguments: encodedConstructorArgs
   }
+  console.debug(mergedSource)
 
   // Link libraries as specified in the artifact
   const libraries = artifact.networks[`${options.networkId}`].links || {}
@@ -145,7 +146,7 @@ const sendVerifyRequest = async (artifact, options) => {
   })
 
   const verifyUrl = `${options.apiUrl}?module=contract&action=verify`
-  // console.debug(`url: ${verifyUrl}, options: ${querystring.stringify(postQueries)}`)
+  console.debug(`url: ${verifyUrl}, options: ${querystring.stringify(postQueries)}`)
   try {
     // return axios.post(verifyUrl, querystring.stringify(postQueries))
     return axios.post(verifyUrl, postQueries)
