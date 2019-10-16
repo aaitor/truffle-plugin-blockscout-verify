@@ -59,9 +59,10 @@ const parseConfig = (config) => {
 
   const workingDir = config.working_directory
   //const contractsBuildDir = config.contracts_build_directory
-  const contractsBuildDir = workingDir + `/build/${networkName}/contracts/`
-  if (!fs.statSync(contractsBuildDir).isDirectory())
-    contractsBuildDir = config.contracts_build_directory
+  contractsBuildDir = config.contracts_build_directory
+
+  if (fs.existsSync(`${workingDir}/build/${networkName}`) && fs.existsSync(`${workingDir}/build/${networkName}/contracts/`))
+    contractsBuildDir = workingDir + `/build/${networkName}/contracts/`
   const optimizerSettings = config.compilers.solc.settings.optimizer
   const verifyPreamble = config.verify && config.verify.preamble
 
