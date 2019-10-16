@@ -127,8 +127,6 @@ const sendVerifyRequest = async (artifact, options) => {
 
 
   const postQueries = {
-    // module: 'contract',
-    // action: 'verifysourcecode',
     addressHash: artifact.networks[`${options.networkId}`].address,
     contractSourceCode: mergedSource,
     name: artifact.contractName,
@@ -137,7 +135,7 @@ const sendVerifyRequest = async (artifact, options) => {
     optimizationRuns: options.runs,
     constructorArguments: encodedConstructorArgs
   }
-  //console.debug(`Optimization: ${options.optimizationUsed}`)
+
   // Link libraries as specified in the artifact
   const libraries = artifact.networks[`${options.networkId}`].links || {}
   Object.entries(libraries).forEach(([key, value], i) => {
