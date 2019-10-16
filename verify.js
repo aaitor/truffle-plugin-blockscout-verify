@@ -102,8 +102,6 @@ const sendVerifyRequest = async (artifact, options) => {
   const mergedSource = await fetchMergedSource(artifact, options)
 
   const postQueries = {
-    // module: 'contract',
-    // action: 'verifysourcecode',
     addressHash: artifact.networks[`${options.networkId}`].address,
     contractSourceCode: mergedSource,
     name: artifact.contractName,
@@ -112,6 +110,8 @@ const sendVerifyRequest = async (artifact, options) => {
     optimizationRuns: options.runs,
     constructorArguments: encodedConstructorArgs
   }
+
+  console.log(`Source code: ${mergedSource}`)
 
   // Link libraries as specified in the artifact
   const libraries = artifact.networks[`${options.networkId}`].links || {}
@@ -128,7 +128,6 @@ const sendVerifyRequest = async (artifact, options) => {
   } catch (e) {
     throw new Error(`Failed to connect to Blockscout API at url ${verifyUrl}`)
   }
-  console.log("linea 127")
 }
 
 const fetchConstructorValues = async (artifact, options) => {
