@@ -4,7 +4,7 @@ const delay = require('delay')
 const { merge } = require('sol-merger')
 const fs = require('fs')
 const { enforce, enforceOrThrow } = require('./util')
-const { API_URLS, EXPLORER_URLS, RequestStatus, VerificationStatus } = require('./constants')
+const { API_URLS, BLOCKSCOUT_URLS, RequestStatus, VerificationStatus } = require('./constants')
 
 // const curlirize = require('axios-curlirize')
 // // initializing axios-curlirize with your axios instance
@@ -19,21 +19,30 @@ module.exports = async (config) => {
   // Track which contracts failed verification
   const failedContracts = []
   for (const contractName of contractNames) {
-    console.log(`Verifying ${contractName}`)
+    //console.log(`Verifying ${contractName}`)
     try {
       const artifact = getArtifact(contractName, options)
-      let status = await verifyContract(artifact, options)
-      if (status === VerificationStatus.FAILED) {
-        failedContracts.push(contractName)
+      const contractAddress = artifact.networks[`${options.networkId}`].address
+
+      let verStatus= await verificationStatus(contractAddress, options)
+      if (verStatus === VerificationStatus.ALREADY_VERIFIED)  {
+        console.debug(`Contract ${contractName} at address ${contractAddress} already verified. Skipping.`)
       } else {
-        // Add link to verified contract on Blockscout
-        const contractAddress = artifact.networks[`${options.networkId}`].address
-        const explorerUrl = `${EXPLORER_URLS[options.networkId]}/address/${contractAddress}/contracts`
-        status += `: ${explorerUrl}`
+        console.debug(`Contract ${contractName} at address ${contractAddress} not verified yet. Let's do it.`)
+
+        let status = await verifyContract(artifact, options)
+        if (status === VerificationStatus.NOT_VERIFIED) {
+          failedContracts.push(contractName)
+        } else {
+          // Add link to verified contract on Blockscout
+          const explorerUrl = `${BLOCKSCOUT_URLS[options.networkId]}/address/${contractAddress}/contracts`
+          status += `: ${explorerUrl}`
+        }
+        console.log(status)
       }
-      console.log(status)
+      
     } catch (e) {
-      console.error(e.message)
+      console.error(`Error ${e}`)
       failedContracts.push(contractName)
     }
     console.log()
@@ -69,6 +78,12 @@ const parseConfig = (config) => {
   console.debug(`Contracts Build Dir ${contractsBuildDir}`)
   console.debug(`Working Dir ${workingDir}`)
 
+  let optimization= false
+  if (optimizerSettings.enabled == 1)
+    optimization= true
+    
+  //console.debug(`Optimization Used {optimizerSettings.enabled} - Opt = ${optimization}`)
+
   return {
     apiUrl,
     networkId,
@@ -77,7 +92,7 @@ const parseConfig = (config) => {
     contractsBuildDir,
     verifyPreamble,
     // Note: API docs state enabled = 0, disbled = 1, but empiric evidence suggests reverse
-    optimizationUsed: optimizerSettings.enabled ? 1 : 0,
+    optimizationUsed: optimization,
     runs: optimizerSettings.runs
   }
 }
@@ -103,24 +118,24 @@ const verifyContract = async (artifact, options) => {
   }
 
   enforceOrThrow(res.data.status === RequestStatus.OK, res.data.result)
-  return verificationStatus(res.data.result, options)
+  const contractAddress = artifact.networks[`${options.networkId}`].address
+  return verificationStatus(contractAddress, options)
 }
 
 const sendVerifyRequest = async (artifact, options) => {
   const encodedConstructorArgs = await fetchConstructorValues(artifact, options)
   const mergedSource = await fetchMergedSource(artifact, options)
 
+
   const postQueries = {
     addressHash: artifact.networks[`${options.networkId}`].address,
     contractSourceCode: mergedSource,
     name: artifact.contractName,
     compilerVersion: `v${artifact.compiler.version.replace('.Emscripten.clang', '')}`,
-    optimization: !options.optimizationUsed,
+    optimization: options.optimizationUsed,
     optimizationRuns: options.runs,
     constructorArguments: encodedConstructorArgs
   }
-
-  console.log(`Source code: ${mergedSource}`)
 
   // Link libraries as specified in the artifact
   const libraries = artifact.networks[`${options.networkId}`].links || {}
@@ -131,40 +146,30 @@ const sendVerifyRequest = async (artifact, options) => {
   })
 
   const verifyUrl = `${options.apiUrl}?module=contract&action=verify`
-  console.log(`url: ${verifyUrl}, options: ${querystring.stringify(postQueries)}`)
+  // console.debug(`url: ${verifyUrl}, options: ${querystring.stringify(postQueries)}`)
   try {
-    return axios.post(verifyUrl, querystring.stringify(postQueries))
+    // return axios.post(verifyUrl, querystring.stringify(postQueries))
+    return axios.post(verifyUrl, postQueries)
   } catch (e) {
-    console.debug(JSON.stringify(e));
+    console.error(`Error verifying: ${e}`)
     throw new Error(`Failed to connect to Blockscout API at url ${verifyUrl}`)
   }
 }
 
 const fetchConstructorValues = async (artifact, options) => {
   const contractAddress = artifact.networks[`${options.networkId}`].address
-  console.debug(`Calling fetchConstructorValues ${contractAddress}`)
-
-  // enforceOrThrow(
-  //   fs.existsSync(artifact.sourcePath),
-  //   `Could not find ${artifact.contractName} source file at ${artifact.sourcePath}`
-  // )
-  // Fetch the contract creation transaction to extract the input data
   let res
   try {
-    console.debug(`${options.apiUrl}?module=account&action=txlist&address=${contractAddress}&page=1&sort=asc&offset=1`)
+    // console.debug(`${options.apiUrl}?module=account&action=txlist&address=${contractAddress}&page=1&sort=asc&offset=1`)
     res = await axios.get(
       `${options.apiUrl}?module=account&action=txlist&address=${contractAddress}&page=1&sort=asc&offset=1`
     )
   } catch (e) {
-    throw new Error(`Failed to connect to Blockscout API at url ${options.apiUrl}`)
+    throw new Error(`Failed Fetching constructor values from Blockscout API at url ${options.apiUrl}`)
   }
   enforceOrThrow(res.data && res.data.status === RequestStatus.OK, 'Failed to fetch constructor arguments')
-  // The last part of the transaction data is the constructor parameters
-  console.debug(`---------${artifact.bytecode.length}`)
-  //console.debug(res.data.result[0].input)
-  //console.debug(`---------`)
-  let constructorParameters= res.data.result[0].input.substring(0, artifact.bytecode.length)
-  console.debug(`Constructor Parameters: ${constructorParameters}`)
+  let constructorParameters= res.data.result[0].input.substring(artifact.bytecode.length)
+  // console.debug(`Constructor Parameters: ${constructorParameters}`)
   return constructorParameters
 }
 
@@ -183,20 +188,27 @@ const fetchMergedSource = async (artifact, options) => {
   return mergedSource
 }
 
-const verificationStatus = async (guid, options) => {
+const verificationStatus = async (address, options) => {
   // Retry API call every second until status is no longer pending
-  while (true) {
-    await delay(1000)
+  let counter= 0
+  const retries = 5
+  while (counter < retries) {
+    let url= `${options.apiUrl}?module=contract&action=getsourcecode&address=${address}`
+    //console.debug(`Retrying contract verification[${counter}] for address ${address} at url: ${url}`)
 
     try {
-      const verificationResult = await axios.get(
-        `${options.apiUrl}?module=contract&action=checkverifystatus&guid=${guid}`
-      )
-      if (verificationResult.data.result !== VerificationStatus.PENDING) {
-        return verificationResult.data.result
+      const result = await axios.get(url)
+      if (result.data.result[0].SourceCode.length > 0) {
+        console.debug(`Contract at ${address} already verified`)
+        return  VerificationStatus.ALREADY_VERIFIED
       }
     } catch (e) {
-      throw new Error(`Failed to connect to Blockscout API at url ${options.apiUrl}`)
+      console.error(`Error in verification status: ${e}`)
+      throw new Error(`Failed to get verification status from Blockscout API at url ${options.apiUrl}`)
     }
+    counter++;
+    await delay(1000)
   }
+  console.debug(`Contract at ${address} source code not verified yet`)
+  return VerificationStatus.NOT_VERIFIED
 }
