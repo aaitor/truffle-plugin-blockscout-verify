@@ -142,11 +142,16 @@ const sendVerifyRequest = async (artifact, options) => {
 
 const fetchConstructorValues = async (artifact, options) => {
   const contractAddress = artifact.networks[`${options.networkId}`].address
+  console.debug(`Calling fetchConstructorValues ${contractAddress}`)
 
+  // enforceOrThrow(
+  //   fs.existsSync(artifact.sourcePath),
+  //   `Could not find ${artifact.contractName} source file at ${artifact.sourcePath}`
+  // )
   // Fetch the contract creation transaction to extract the input data
   let res
   try {
-    // console.log(`${options.apiUrl}?module=account&action=txlist&address=${contractAddress}&page=1&sort=asc&offset=1`)
+    console.debug(`${options.apiUrl}?module=account&action=txlist&address=${contractAddress}&page=1&sort=asc&offset=1`)
     res = await axios.get(
       `${options.apiUrl}?module=account&action=txlist&address=${contractAddress}&page=1&sort=asc&offset=1`
     )
@@ -155,7 +160,12 @@ const fetchConstructorValues = async (artifact, options) => {
   }
   enforceOrThrow(res.data && res.data.status === RequestStatus.OK, 'Failed to fetch constructor arguments')
   // The last part of the transaction data is the constructor parameters
-  return res.data.result[0].input.substring(artifact.bytecode.length)
+  console.debug(`---------${artifact.bytecode.length}`)
+  //console.debug(res.data.result[0].input)
+  //console.debug(`---------`)
+  let constructorParameters= res.data.result[0].input.substring(0, artifact.bytecode.length)
+  console.debug(`Constructor Parameters: ${constructorParameters}`)
+  return constructorParameters
 }
 
 const fetchMergedSource = async (artifact, options) => {
