@@ -23,10 +23,11 @@ module.exports = async (config) => {
     try {
       const artifact = getArtifact(contractName, options)
       const contractAddress = artifact.networks[`${options.networkId}`].address
+      const explorerUrl = `${BLOCKSCOUT_URLS[options.networkId]}/address/${contractAddress}/contracts`
 
       let verStatus= await verificationStatus(contractAddress, options)
       if (verStatus === VerificationStatus.ALREADY_VERIFIED)  {
-        console.debug(`Contract ${contractName} at address ${contractAddress} already verified. Skipping.`)
+        console.debug(`Contract ${contractName} at address ${contractAddress} already verified. Skipping: ${explorerUrl}`)
       } else {
         console.debug(`Contract ${contractName} at address ${contractAddress} not verified yet. Let's do it.`)
 
@@ -35,7 +36,6 @@ module.exports = async (config) => {
           failedContracts.push(contractName)
         } else {
           // Add link to verified contract on Blockscout
-          const explorerUrl = `${BLOCKSCOUT_URLS[options.networkId]}/address/${contractAddress}/contracts`
           status += `: ${explorerUrl}`
         }
         console.log(status)
@@ -192,7 +192,7 @@ const verificationStatus = async (address, options) => {
   let counter= 0
   const retries = 5
   while (counter < retries) {
-    let url= `${options.apiUrl}?module=contract&action=getsourcecode&address=${address}`
+    let url = `${options.apiUrl}?module=contract&action=getsourcecode&address=${address}`
     //console.debug(`Retrying contract verification[${counter}] for address ${address} at url: ${url}`)
 
     try {
