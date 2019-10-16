@@ -51,19 +51,27 @@ const parseConfig = (config) => {
   console.log(Object.getOwnPropertyNames(config))
   // Truffle handles network stuff, just need network_id
   const networkId = config.network_id
+  const networkName = config.network
   const apiUrl = API_URLS[networkId]
   enforce(apiUrl, `Blockscout has no support for network ${config.network} with id ${networkId}`)
 
   enforce(config._.length > 1, 'No contract name(s) specified')
 
   const workingDir = config.working_directory
-  const contractsBuildDir = config.contracts_build_directory
+  //const contractsBuildDir = config.contracts_build_directory
+  const contractsBuildDir = workingDir + `/build/${networkName}/contracts/`
+  if (!fs.statSync(contractsBuildDir).isDirectory())
+    contractsBuildDir = config.contracts_build_directory
   const optimizerSettings = config.compilers.solc.settings.optimizer
   const verifyPreamble = config.verify && config.verify.preamble
+
+  console.debug(`Contracts Build Dir ${contractsBuildDir}`)
+  console.debug(`Working Dir ${workingDir}`)
 
   return {
     apiUrl,
     networkId,
+    networkName,
     workingDir,
     contractsBuildDir,
     verifyPreamble,
@@ -83,7 +91,7 @@ const getArtifact = (contractName, options) => {
 const verifyContract = async (artifact, options) => {
   enforceOrThrow(
     artifact.networks && artifact.networks[`${options.networkId}`],
-    `No instance of contract ${artifact.contractName} found for network id ${options.networkId}`
+    `No instance of contract ${artifact.contractName} found for network id ${options.networkId} and network name ${options.networkName}`
   )
 
   const res = await sendVerifyRequest(artifact, options)
@@ -126,17 +134,23 @@ const sendVerifyRequest = async (artifact, options) => {
   try {
     return axios.post(verifyUrl, querystring.stringify(postQueries))
   } catch (e) {
+    console.debug(JSON.stringify(e));
     throw new Error(`Failed to connect to Blockscout API at url ${verifyUrl}`)
   }
 }
 
 const fetchConstructorValues = async (artifact, options) => {
   const contractAddress = artifact.networks[`${options.networkId}`].address
+  console.debug(`Calling fetchConstructorValues ${contractAddress}`)
 
+  // enforceOrThrow(
+  //   fs.existsSync(artifact.sourcePath),
+  //   `Could not find ${artifact.contractName} source file at ${artifact.sourcePath}`
+  // )
   // Fetch the contract creation transaction to extract the input data
   let res
   try {
-    // console.log(`${options.apiUrl}?module=account&action=txlist&address=${contractAddress}&page=1&sort=asc&offset=1`)
+    console.debug(`${options.apiUrl}?module=account&action=txlist&address=${contractAddress}&page=1&sort=asc&offset=1`)
     res = await axios.get(
       `${options.apiUrl}?module=account&action=txlist&address=${contractAddress}&page=1&sort=asc&offset=1`
     )
@@ -145,7 +159,12 @@ const fetchConstructorValues = async (artifact, options) => {
   }
   enforceOrThrow(res.data && res.data.status === RequestStatus.OK, 'Failed to fetch constructor arguments')
   // The last part of the transaction data is the constructor parameters
-  return res.data.result[0].input.substring(artifact.bytecode.length)
+  console.debug(`---------${artifact.bytecode.length}`)
+  //console.debug(res.data.result[0].input)
+  //console.debug(`---------`)
+  let constructorParameters= res.data.result[0].input.substring(0, artifact.bytecode.length)
+  console.debug(`Constructor Parameters: ${constructorParameters}`)
+  return constructorParameters
 }
 
 const fetchMergedSource = async (artifact, options) => {

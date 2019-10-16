@@ -1,5 +1,5 @@
 {
     "commands": {
-        "verify": "verify.js"
+        "verify-blockscout": "verify.js"
     }
 }
