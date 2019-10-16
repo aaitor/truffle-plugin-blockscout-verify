@@ -57,7 +57,6 @@ module.exports = async (config) => {
 }
 
 const parseConfig = (config) => {
-  console.log(Object.getOwnPropertyNames(config))
   // Truffle handles network stuff, just need network_id
   const networkId = config.network_id
   const networkName = config.network
