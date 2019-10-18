@@ -5,7 +5,8 @@ const { merge } = require('sol-merger')
 const fs = require('fs')
 const { enforce, enforceOrThrow } = require('./util')
 const { API_URLS, BLOCKSCOUT_URLS, RequestStatus, VerificationStatus } = require('./constants')
-const { newKit } = require('@celo/contractkit')
+const { newKit, CeloContract} = require('@celo/contractkit')
+const kit = newKit('http://localhost:8545')
 
 // const curlirize = require('axios-curlirize')
 // // initializing axios-curlirize with your axios instance
@@ -127,7 +128,7 @@ const sendVerifyRequest = async (artifact, options) => {
   const contractAddress= artifact.networks[`${options.networkId}`].address
   const encodedConstructorArgs = await fetchConstructorValues(artifact, options)
   const mergedSource = await fetchMergedSource(artifact, options)
-  const contractProxyAddress = await getProxyAddress(contractAddress, options)
+  const contractProxyAddress = await getProxyAddress(artifact.contractName, options)
 
 
   const postQueries = {
@@ -218,6 +219,6 @@ const verificationStatus = async (address, options) => {
   return VerificationStatus.NOT_VERIFIED
 }
 
-const getProxyAddress = async (address, options) => {
-  
+const getProxyAddress = async (contractName, options) => {
+  const proxyAddress= await kit.registry.addressFor(CeloContract.Random)
 }

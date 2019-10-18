@@ -1,19 +1,21 @@
-const assert = require('assert')
-const { newKit, CeloContract} = require('@celo/contractkit')
-console.log(newKit)
+const {assert} = require('chai')
+const {newKit, CeloContract} = require('@celo/contractkit')
 
-describe('Verify Tests', function() {
-    it('Contract Kit is initialized', async function() {
-        
-        const kit = newKit('http://localhost:8545')
-        const web3Exchange = await kit._web3Contracts.getExchange()
-        // console.log(web3Exchange.address)
-        // assert.ok(web3Exchange.address.length > 0, "This shouldn't fail");
-    }),
-    it('I can retreive the proxy address of a contract', async function() {
-        const kit = newKit('http://localhost:8545')
-        const proxyAddress= await kit.registry.addressFor(CeloContract.Random)
-        //console.log("Address: " + proxyAddress)
-        assert.ok(proxyAddress.length > 0, "We have the Proxy address");
+
+describe('Verify Tests', () => {
+    let kit
+
+    beforeEach(() => {
+        kit = newKit('http://localhost:8545')
+    })
+
+    it('should initialize', async() => {
+        assert.isOk(kit, 'Should be defined')
+    })
+    
+    it('should retrieve the proxy address of a contract', async() => {
+        const address = await kit.registry.addressFor(CeloContract.Random)
+        console.log("Proxy address: " + address)
+        assert.match(address, /^0x[a-f0-9]{64}$/i, "Address should be an address")
     })
 })
