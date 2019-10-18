@@ -5,6 +5,7 @@ const { merge } = require('sol-merger')
 const fs = require('fs')
 const { enforce, enforceOrThrow } = require('./util')
 const { API_URLS, BLOCKSCOUT_URLS, RequestStatus, VerificationStatus } = require('./constants')
+const { newKit } = require('@celo/contractkit')
 
 // const curlirize = require('axios-curlirize')
 // // initializing axios-curlirize with your axios instance
@@ -12,9 +13,10 @@ const { API_URLS, BLOCKSCOUT_URLS, RequestStatus, VerificationStatus } = require
 
 module.exports = async (config) => {
   const options = parseConfig(config)
-
+  //const kit = newKit.getExchange('http://localhost:8545')
   // Verify each contract
   const contractNames = config._.slice(1)
+
 
   // Track which contracts failed verification
   const failedContracts = []
@@ -122,18 +124,21 @@ const verifyContract = async (artifact, options) => {
 }
 
 const sendVerifyRequest = async (artifact, options) => {
+  const contractAddress= artifact.networks[`${options.networkId}`].address
   const encodedConstructorArgs = await fetchConstructorValues(artifact, options)
   const mergedSource = await fetchMergedSource(artifact, options)
+  const contractProxyAddress = await getProxyAddress(contractAddress, options)
 
 
   const postQueries = {
-    addressHash: artifact.networks[`${options.networkId}`].address,
+    addressHash: contractAddress,
     contractSourceCode: mergedSource,
     name: artifact.contractName,
     compilerVersion: `v${artifact.compiler.version.replace('.Emscripten.clang', '')}`,
     optimization: options.optimizationUsed,
     optimizationRuns: options.runs,
-    constructorArguments: encodedConstructorArgs
+    constructorArguments: encodedConstructorArgs,
+    proxyAddress: contractProxyAddress
   }
   console.debug(mergedSource)
 
@@ -211,4 +216,8 @@ const verificationStatus = async (address, options) => {
   }
   console.debug(`Contract at ${address} source code not verified yet`)
   return VerificationStatus.NOT_VERIFIED
+}
+
+const getProxyAddress = async (address, options) => {
+  
 }
