@@ -1,17 +1,19 @@
-const assert = require('assert')
+const {assert} = require('chai')
 const {newKit} = require('@celo/contractkit')
-console.log(newKit)
 
-describe('Verify Tests', function() {
-    it('Contract Kit is initialized', async function() {
-        
-        const kit = newKit('http://localhost:8545')
-        const web3Exchange = await kit._web3Contracts.getExchange()
-        console.log(web3Exchange.address)
-        assert.ok(web3Exchange.address.lenght > 0, "This shouldn't fail");
-    }),
-    it('I can retreive the proxy address of a contract', function() {
-        kit.registry.addressFor(CeloContract)
-        assert.ok(true, "This shouldn't fail");
+describe('Verify Tests', () => {
+    let kit
+
+    beforeEach(() => {
+        kit = newKit('http://localhost:8545')
+    })
+
+    it('should initialize', async() => {
+        assert.isOk(kit, 'Should be defined')
+    })
+    
+    it('should retrieve the proxy address of a contract', async() => {
+        const address = kit.registry.addressFor(CeloContract)
+        assert.match(address, /^0x[a-f0-9]{64}$/i, "Address should be an address")
     })
 })
