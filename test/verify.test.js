@@ -11,7 +11,7 @@ describe('Verify Tests', function() {
         assert.ok(web3Exchange.address.lenght > 0, "This shouldn't fail");
     }),
     it('I can retreive the proxy address of a contract', function() {
-         kit.registry.addressFor(CeloContract.StableToken)
+        kit.registry.addressFor(CeloContract)
         assert.ok(true, "This shouldn't fail");
     })
 })
