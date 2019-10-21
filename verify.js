@@ -58,16 +58,7 @@ module.exports = async (config) => {
 
   console.log(`Successfully verified ${contractNames.length} contract(s).`)
 
-  const getProxyAddress = async (contractName) => {
-    try {
-      const proxyAddress= await kit.registry.addressFor("Random")
-      assert.match(proxyAddress, /^0x[a-f0-9]{40}$/i)
-      console.debug("Proxy address: " + proxyAddress)
-      return proxyAddress
-    } catch (e) {
-      return ""
-    }
-  }
+  
 }
 
 const parseConfig = (config) => {
@@ -142,18 +133,19 @@ const sendVerifyRequest = async (artifact, options) => {
   const contractProxyAddress = await getProxyAddress(artifact.contractName)
 
 
-  const postQueries = {
+  var postQueries = {
     addressHash: contractAddress,
     contractSourceCode: mergedSource,
     name: artifact.contractName,
     compilerVersion: `v${artifact.compiler.version.replace('.Emscripten.clang', '')}`,
     optimization: options.optimizationUsed,
     optimizationRuns: options.runs,
-    constructorArguments: encodedConstructorArgs,
-    proxyAddress: contractProxyAddress
+    constructorArguments: encodedConstructorArgs
   }
-  console.debug(mergedSource)
 
+  if (contractProxyAddress)
+    postQueries["proxyAddress"]= contractProxyAddress
+  
   // Link libraries as specified in the artifact
   const libraries = artifact.networks[`${options.networkId}`].links || {}
   Object.entries(libraries).forEach(([key, value], i) => {
@@ -230,4 +222,15 @@ const verificationStatus = async (address, options) => {
   return VerificationStatus.NOT_VERIFIED
 }
 
+const getProxyAddress = async (contractName) => {
+  try {
+    return await kit.registry.addressFor(contractName)
+  } catch (e) {
+    return false
+  }
+}
 
+Object.assign(module.exports, {
+  getProxyAddress,
+  verificationStatus
+})
