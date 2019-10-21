@@ -49,7 +49,7 @@ During the development of the plugin, you can run it from the truffle folder run
 
 ```
 npm link /path/to/truffle-plugin-blockscout-verify
-./node_modules/.bin/truffle run verify FixidityLib --network integration
+./node_modules/.bin/truffle run verify Random --network integration
 
 ```
 
@@ -63,7 +63,7 @@ module.exports = {
   /* ... rest of truffle-config */
 
   verify: {
-    preamble: "Author: John Citizen.\nVersion: 1.0.1"
+    preamble: "Author: John Doe.\nVersion: 0.0.1"
   }
 }
 ```
