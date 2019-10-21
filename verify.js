@@ -57,6 +57,17 @@ module.exports = async (config) => {
   )
 
   console.log(`Successfully verified ${contractNames.length} contract(s).`)
+
+  const getProxyAddress = async (contractName) => {
+    try {
+      const proxyAddress= await kit.registry.addressFor("Random")
+      assert.match(proxyAddress, /^0x[a-f0-9]{40}$/i)
+      console.debug("Proxy address: " + proxyAddress)
+      return proxyAddress
+    } catch (e) {
+      return ""
+    }
+  }
 }
 
 const parseConfig = (config) => {
@@ -128,7 +139,7 @@ const sendVerifyRequest = async (artifact, options) => {
   const contractAddress= artifact.networks[`${options.networkId}`].address
   const encodedConstructorArgs = await fetchConstructorValues(artifact, options)
   const mergedSource = await fetchMergedSource(artifact, options)
-  const contractProxyAddress = await getProxyAddress(artifact.contractName, options)
+  const contractProxyAddress = await getProxyAddress(artifact.contractName)
 
 
   const postQueries = {
@@ -219,6 +230,4 @@ const verificationStatus = async (address, options) => {
   return VerificationStatus.NOT_VERIFIED
 }
 
-const getProxyAddress = async (contractName, options) => {
-  const proxyAddress= await kit.registry.addressFor(CeloContract.Random)
-}
+
