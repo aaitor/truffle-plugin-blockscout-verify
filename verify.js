@@ -27,10 +27,11 @@ module.exports = async (config) => {
     console.debug(`Verifying ${contractName}`)
     try {
       const artifact = getArtifact(contractName, options)
-      if (!(options.networkId in artifact.networks) || !artifact.networks[`${options.networkId}`].hasOwnProperty("address")) {
-        console.debug(`Contract ${contractName} is not deployed on NetworkId ${options.networkId}`)
-        continue
-      }
+      enforceOrThrow(
+        artifact.networks && artifact.networks[`${options.networkId}`],
+        `No instance of contract ${artifact.contractName} found for network id ${options.networkId} and network name ${options.networkName}`
+      )
+
       const contractAddress = artifact.networks[`${options.networkId}`].address
       const explorerUrl = `${BLOCKSCOUT_URLS[options.networkId]}/address/${contractAddress}/contracts`
 
