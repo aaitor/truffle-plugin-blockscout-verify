@@ -33,7 +33,7 @@ module.exports = async (config) => {
       )
 
       const contractAddress = artifact.networks[`${options.networkId}`].address
-      const explorerUrl = `${BLOCKSCOUT_URLS[options.networkId]}/address/${contractAddress}/contracts`
+      const explorerUrl = `${options.blockscoutUrl}/address/${contractAddress}/contracts`
 
       let verStatus = await verificationStatus(contractAddress, options)
       if (verStatus === VerificationStatus.ALREADY_VERIFIED)  {
@@ -72,8 +72,10 @@ const parseConfig = (config) => {
   // Truffle handles network stuff, just need network_id
   const networkId = config.network_id
   const networkName = config.network
-  const apiUrl = API_URLS[networkId]
-  enforce(apiUrl, `Blockscout has no support for network ${config.network} with id ${networkId}`)
+  // const apiUrl = API_URLS[networkId]
+  const blockscoutUrl = config.blockscoutUrl
+  enforce(blockscoutUrl, `Blockscout has no support for network ${config.network} with id ${networkId}`)
+  const apiUrl = `${blockscoutUrl}/api`
 
   enforce(config._.length > 1, 'No contract name(s) specified')
 
@@ -96,6 +98,7 @@ const parseConfig = (config) => {
   //console.debug(`Optimization Used {optimizerSettings.enabled} - Opt = ${optimization}`)
 
   return {
+    blockscoutUrl,
     apiUrl,
     networkId,
     networkName,
