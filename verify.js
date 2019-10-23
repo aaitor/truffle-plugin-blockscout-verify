@@ -3,32 +3,38 @@ const querystring = require('querystring')
 const delay = require('delay')
 const { merge } = require('sol-merger')
 const fs = require('fs')
+const path = require('path')
 const { enforce, enforceOrThrow } = require('./util')
 const { API_URLS, BLOCKSCOUT_URLS, RequestStatus, VerificationStatus } = require('./constants')
 const { newKit, CeloContract} = require('@celo/contractkit')
 const kit = newKit('http://localhost:8545')
 
-// const curlirize = require('axios-curlirize')
-// // initializing axios-curlirize with your axios instance
-// curlirize(axios);
 
 module.exports = async (config) => {
   const options = parseConfig(config)
   //const kit = newKit.getExchange('http://localhost:8545')
   // Verify each contract
-  const contractNames = config._.slice(1)
+  contractNames = config._.slice(1)
 
 
   // Track which contracts failed verification
   const failedContracts = []
+
+  if (contractNames.includes("all")) {
+    contractNames = await getAllContractFiles(options.contractsBuildDir)
+  }
   for (const contractName of contractNames) {
-    //console.log(`Verifying ${contractName}`)
+    console.debug(`Verifying ${contractName}`)
     try {
       const artifact = getArtifact(contractName, options)
+      if (!(options.networkId in artifact.networks) || !artifact.networks[`${options.networkId}`].hasOwnProperty("address")) {
+        console.debug(`Contract ${contractName} is not deployed on NetworkId ${options.networkId}`)
+        continue
+      }
       const contractAddress = artifact.networks[`${options.networkId}`].address
       const explorerUrl = `${BLOCKSCOUT_URLS[options.networkId]}/address/${contractAddress}/contracts`
 
-      let verStatus= await verificationStatus(contractAddress, options)
+      let verStatus = await verificationStatus(contractAddress, options)
       if (verStatus === VerificationStatus.ALREADY_VERIFIED)  {
         console.debug(`Contract ${contractName} at address ${contractAddress} already verified. Skipping: ${explorerUrl}`)
       } else {
@@ -155,7 +161,7 @@ const sendVerifyRequest = async (artifact, options) => {
   })
 
   const verifyUrl = `${options.apiUrl}?module=contract&action=verify`
-  console.debug(`url: ${verifyUrl}, options: ${querystring.stringify(postQueries)}`)
+  // console.debug(`url: ${verifyUrl}, options: ${querystring.stringify(postQueries)}`)
   try {
     // return axios.post(verifyUrl, querystring.stringify(postQueries))
     return axios.post(verifyUrl, postQueries)
@@ -234,3 +240,29 @@ Object.assign(module.exports, {
   getProxyAddress,
   verificationStatus
 })
+
+const getAllContractFiles = async (contractFolder) => {
+  const contractFiles = fromDir(contractFolder, '.json')
+  return contractFiles
+}
+
+const fromDir = async(folder, filter) => {
+  filesFiltered = []
+  if (!fs.existsSync(folder)) {
+    console.error(`Directory ${folder} does not exist. Exiting`)
+    return filesFiltered
+  }
+  files = fs.readdirSync(folder)
+  filesFiltered = []
+  for (const f of files) {
+    filename = path.join(folder, f)
+    stat = fs.lstatSync(filename)
+    if (stat.isDirectory()) {
+      fromDir(f, filter)
+    }
+    else if (path.parse(f).ext == filter) {
+      filesFiltered.push(path.parse(f).name)
+    }
+  }
+  return filesFiltered
+}
