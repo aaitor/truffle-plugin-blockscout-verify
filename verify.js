@@ -1,10 +1,9 @@
 const axios = require('axios')
-const querystring = require('querystring')
 const delay = require('delay')
 const { merge } = require('sol-merger')
 const fs = require('fs')
 const path = require('path')
-const { enforce, enforceOrThrow } = require('./util')
+const { enforce, enforceOrThrowError, enforceOrThrowWarn } = require('./util')
 const { API_URLS, BLOCKSCOUT_URLS, RequestStatus, VerificationStatus } = require('./constants')
 const { newKit, CeloContract} = require('@celo/contractkit')
 const kit = newKit('http://localhost:8545')
@@ -19,6 +18,7 @@ module.exports = async (config) => {
 
   // Track which contracts failed verification
   const failedContracts = []
+  const notDeployedContracts = []
 
   if (contractNames.includes("all")) {
     contractNames = await getAllContractFiles(options.contractsBuildDir)
@@ -26,11 +26,16 @@ module.exports = async (config) => {
   for (const contractName of contractNames) {
     console.debug(`Verifying ${contractName}`)
     try {
-      const artifact = getArtifact(contractName, options)
-      enforceOrThrow(
+      const artifact = getArtifact(contractName, options)\
+
+      if (!enforceOrThrowWarn(
         artifact.networks && artifact.networks[`${options.networkId}`],
         `No instance of contract ${artifact.contractName} found for network id ${options.networkId} and network name ${options.networkName}`
-      )
+      )) {
+        status = VerificationStatus.NOT_DEPLOYED
+        notDeployedContracts.push(contractName)
+        continue
+      }
 
       const contractAddress = artifact.networks[`${options.networkId}`].address
       const explorerUrl = `${options.blockscoutUrl}/address/${contractAddress}/contracts`
@@ -58,13 +63,14 @@ module.exports = async (config) => {
     console.log()
   }
 
-  enforce(
+
+  enforceOrThrowError(
     failedContracts.length === 0,
     `Failed to verify ${failedContracts.length} contract(s): ${failedContracts.join(', ')}`
   )
 
+  console.log(`Contracts not deployed: ${notDeployedContracts.join(', ')}`)
   console.log(`Successfully verified ${contractNames.length} contract(s).`)
-
   
 }
 
@@ -72,7 +78,6 @@ const parseConfig = (config) => {
   // Truffle handles network stuff, just need network_id
   const networkId = config.network_id
   const networkName = config.network
-  // const apiUrl = API_URLS[networkId]
   const blockscoutUrl = config.blockscoutUrl
   enforce(blockscoutUrl, `Blockscout has no support for network ${config.network} with id ${networkId}`)
   const apiUrl = `${blockscoutUrl}/api`
@@ -80,7 +85,6 @@ const parseConfig = (config) => {
   enforce(config._.length > 1, 'No contract name(s) specified')
 
   const workingDir = config.working_directory
-  //const contractsBuildDir = config.contracts_build_directory
   contractsBuildDir = config.contracts_build_directory
 
   if (fs.existsSync(`${workingDir}/build/${networkName}`) && fs.existsSync(`${workingDir}/build/${networkName}/contracts/`))
@@ -114,24 +118,24 @@ const parseConfig = (config) => {
 const getArtifact = (contractName, options) => {
   // Construct artifact path and read artifact
   const artifactPath = `${options.contractsBuildDir}/${contractName}.json`
-  enforceOrThrow(fs.existsSync(artifactPath), `Could not find ${contractName} artifact at ${artifactPath}`)
+  enforceOrThrowError(fs.existsSync(artifactPath), `Could not find ${contractName} artifact at ${artifactPath}`)
   return require(artifactPath)
 }
 
 const verifyContract = async (artifact, options) => {
-  enforceOrThrow(
+  enforceOrThrowError(
     artifact.networks && artifact.networks[`${options.networkId}`],
     `No instance of contract ${artifact.contractName} found for network id ${options.networkId} and network name ${options.networkName}`
   )
 
   const res = await sendVerifyRequest(artifact, options)
-  enforceOrThrow(res.data, `Failed to connect to Blockscout API at url ${options.apiUrl}`)
+  enforceOrThrowError(res.data, `Failed to connect to Blockscout API at url ${options.apiUrl}`)
 
   if (res.data.result === VerificationStatus.ALREADY_VERIFIED) {
     return VerificationStatus.ALREADY_VERIFIED
   }
 
-  enforceOrThrow(res.data.status === RequestStatus.OK, res.data.result)
+  enforceOrThrowError(res.data.status === RequestStatus.OK, res.data.result)
   const contractAddress = artifact.networks[`${options.networkId}`].address
   return verificationStatus(contractAddress, options)
 }
@@ -154,20 +158,18 @@ const sendVerifyRequest = async (artifact, options) => {
   }
 
   if (contractProxyAddress)
-    postQueries["proxyAddress"]= contractProxyAddress
+    postQueries["proxyAddress"] = contractProxyAddress
   
   // Link libraries as specified in the artifact
   const libraries = artifact.networks[`${options.networkId}`].links || {}
   Object.entries(libraries).forEach(([key, value], i) => {
-    enforceOrThrow(i < 5, 'Can not link more than 5 libraries with Blockscout API')
+    enforceOrThrowError(i < 5, 'Can not link more than 5 libraries with Blockscout API')
     postQueries[`library${i + 1}Name`] = key
     postQueries[`library${i + 1}Address`] = value
   })
 
   const verifyUrl = `${options.apiUrl}?module=contract&action=verify`
-  // console.debug(`url: ${verifyUrl}, options: ${querystring.stringify(postQueries)}`)
   try {
-    // return axios.post(verifyUrl, querystring.stringify(postQueries))
     return axios.post(verifyUrl, postQueries)
   } catch (e) {
     console.error(`Error verifying: ${e}`)
@@ -179,21 +181,19 @@ const fetchConstructorValues = async (artifact, options) => {
   const contractAddress = artifact.networks[`${options.networkId}`].address
   let res
   try {
-    // console.debug(`${options.apiUrl}?module=account&action=txlist&address=${contractAddress}&page=1&sort=asc&offset=1`)
     res = await axios.get(
       `${options.apiUrl}?module=account&action=txlist&address=${contractAddress}&page=1&sort=asc&offset=1`
     )
   } catch (e) {
     throw new Error(`Failed Fetching constructor values from Blockscout API at url ${options.apiUrl}`)
   }
-  enforceOrThrow(res.data && res.data.status === RequestStatus.OK, 'Failed to fetch constructor arguments')
+  enforceOrThrowError(res.data && res.data.status === RequestStatus.OK, 'Failed to fetch constructor arguments')
   let constructorParameters= res.data.result[0].input.substring(artifact.bytecode.length)
-  // console.debug(`Constructor Parameters: ${constructorParameters}`)
   return constructorParameters
 }
 
 const fetchMergedSource = async (artifact, options) => {
-  enforceOrThrow(
+  enforceOrThrowError(
     fs.existsSync(artifact.sourcePath),
     `Could not find ${artifact.contractName} source file at ${artifact.sourcePath}`
   )
