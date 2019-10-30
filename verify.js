@@ -19,18 +19,19 @@ module.exports = async (config) => {
   // Track which contracts failed verification
   const failedContracts = []
   const notDeployedContracts = []
+  const deployedContracts = []
 
   if (contractNames.includes("all")) {
     contractNames = await getAllContractFiles(options.contractsBuildDir)
   }
   for (const contractName of contractNames) {
-    console.debug(`Verifying ${contractName}`)
+    console.debug(`\r\nVerifying ${contractName}`)
     try {
-      const artifact = getArtifact(contractName, options)\
-
+      const artifact = getArtifact(contractName, options)
+      // console.log(`Artifact: ${JSON.stringify(artifact, null, 2)}`)
       if (!enforceOrThrowWarn(
-        artifact.networks && artifact.networks[`${options.networkId}`],
-        `No instance of contract ${artifact.contractName} found for network id ${options.networkId} and network name ${options.networkName}`
+        artifact.networks && artifact.networks[`${options.networkId}`] && artifact.networks[`${options.networkId}`].address,
+        `No instance of contract ${artifact.contractName} found for network id ${options.networkId} and network name ${options.networkName}\r\n`
       )) {
         status = VerificationStatus.NOT_DEPLOYED
         notDeployedContracts.push(contractName)
@@ -40,7 +41,7 @@ module.exports = async (config) => {
       const contractAddress = artifact.networks[`${options.networkId}`].address
       const explorerUrl = `${options.blockscoutUrl}/address/${contractAddress}/contracts`
 
-      let verStatus = await verificationStatus(contractAddress, options)
+      let verStatus = await checkVerificationStatus(contractAddress, options)
       if (verStatus === VerificationStatus.ALREADY_VERIFIED)  {
         console.debug(`Contract ${contractName} at address ${contractAddress} already verified. Skipping: ${explorerUrl}`)
       } else {
@@ -52,6 +53,7 @@ module.exports = async (config) => {
         } else {
           // Add link to verified contract on Blockscout
           status += `: ${explorerUrl}`
+          deployedContracts.push(contractName)
         }
         console.log(status)
       }
@@ -63,15 +65,13 @@ module.exports = async (config) => {
     console.log()
   }
 
+  console.log(`\r\nContracts not deployed: ${notDeployedContracts.join(', ')}\r\n`)
+  console.log(`\r\nSuccessfully verified ${deployedContracts.length} contract(s).\r\n`)
 
   enforceOrThrowError(
     failedContracts.length === 0,
-    `Failed to verify ${failedContracts.length} contract(s): ${failedContracts.join(', ')}`
+    `\r\nFailed to verify ${failedContracts.length} contract(s): ${failedContracts.join(', ')}\r\n`
   )
-
-  console.log(`Contracts not deployed: ${notDeployedContracts.join(', ')}`)
-  console.log(`Successfully verified ${contractNames.length} contract(s).`)
-  
 }
 
 const parseConfig = (config) => {
@@ -87,18 +87,19 @@ const parseConfig = (config) => {
   const workingDir = config.working_directory
   contractsBuildDir = config.contracts_build_directory
 
-  if (fs.existsSync(`${workingDir}/build/${networkName}`) && fs.existsSync(`${workingDir}/build/${networkName}/contracts/`))
+  if (fs.existsSync(`${workingDir}/build/${networkName}`) && fs.existsSync(`${workingDir}/build/${networkName}/contracts/`)) {
     contractsBuildDir = workingDir + `/build/${networkName}/contracts/`
+  }
   const optimizerSettings = config.compilers.solc.settings.optimizer
   const verifyPreamble = config.verify && config.verify.preamble
 
   console.debug(`Contracts Build Dir ${contractsBuildDir}`)
   console.debug(`Working Dir ${workingDir}`)
 
-  let optimization= false
-  if (optimizerSettings.enabled == 1)
-    optimization= true
-    
+  let optimization = false
+  if (optimizerSettings.enabled == 1) {
+    optimization = true
+  }
   //console.debug(`Optimization Used {optimizerSettings.enabled} - Opt = ${optimization}`)
 
   return {
@@ -137,7 +138,7 @@ const verifyContract = async (artifact, options) => {
 
   enforceOrThrowError(res.data.status === RequestStatus.OK, res.data.result)
   const contractAddress = artifact.networks[`${options.networkId}`].address
-  return verificationStatus(contractAddress, options)
+  return checkVerificationStatus(contractAddress, options)
 }
 
 const sendVerifyRequest = async (artifact, options) => {
@@ -170,6 +171,8 @@ const sendVerifyRequest = async (artifact, options) => {
 
   const verifyUrl = `${options.apiUrl}?module=contract&action=verify`
   try {
+    // console.log(`verifyUrl: ${verifyUrl}`)
+    // console.log(`postQueries: ${JSON.stringify(postQueries, null, 4)}`)
     return axios.post(verifyUrl, postQueries)
   } catch (e) {
     console.error(`Error verifying: ${e}`)
@@ -207,7 +210,7 @@ const fetchMergedSource = async (artifact, options) => {
   return mergedSource
 }
 
-const verificationStatus = async (address, options) => {
+const checkVerificationStatus = async (address, options) => {
   // Retry API call every second until status is no longer pending
   let counter= 0
   const retries = 5
@@ -242,7 +245,7 @@ const getProxyAddress = async (contractName) => {
 
 Object.assign(module.exports, {
   getProxyAddress,
-  verificationStatus
+  checkVerificationStatus
 })
 
 const getAllContractFiles = async (contractFolder) => {
