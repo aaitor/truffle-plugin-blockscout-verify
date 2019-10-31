@@ -11,7 +11,7 @@ const kit = newKit('http://localhost:8545')
 
 module.exports = async (config) => {
   const options = parseConfig(config)
-  //const kit = newKit.getExchange('http://localhost:8545')
+  // const kit = newKit.getExchange('http://localhost:8545')
   // Verify each contract
   contractNames = config._.slice(1)
 
@@ -55,18 +55,18 @@ module.exports = async (config) => {
           status += `: ${explorerUrl}`
           deployedContracts.push(contractName)
         }
-        console.log(status)
+        console.debug(status)
       }
       
     } catch (e) {
       console.error(`Error ${e}`)
       failedContracts.push(contractName)
     }
-    console.log()
+    console.debug()
   }
 
-  console.log(`\r\nContracts not deployed: ${notDeployedContracts.join(', ')}\r\n`)
-  console.log(`\r\nSuccessfully verified ${deployedContracts.length} contract(s).\r\n`)
+  console.info(`\r\nContracts not deployed: ${notDeployedContracts.join(', ')}\r\n`)
+  console.info(`\r\nSuccessfully verified ${deployedContracts.length} contract(s).\r\n`)
 
   enforceOrThrowError(
     failedContracts.length === 0,
@@ -100,7 +100,6 @@ const parseConfig = (config) => {
   if (optimizerSettings.enabled == 1) {
     optimization = true
   }
-  //console.debug(`Optimization Used {optimizerSettings.enabled} - Opt = ${optimization}`)
 
   return {
     blockscoutUrl,
@@ -171,8 +170,6 @@ const sendVerifyRequest = async (artifact, options) => {
 
   const verifyUrl = `${options.apiUrl}?module=contract&action=verify`
   try {
-    // console.log(`verifyUrl: ${verifyUrl}`)
-    // console.log(`postQueries: ${JSON.stringify(postQueries, null, 4)}`)
     return axios.post(verifyUrl, postQueries)
   } catch (e) {
     console.error(`Error verifying: ${e}`)
