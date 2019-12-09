@@ -212,7 +212,7 @@ const checkVerificationStatus = async (address, options) => {
   let counter= 0
   const retries = 5
   while (counter < retries) {
-    let url = `${options.apiUrl}?module=contract&action=getsourcecode&address=${address}`
+    let url = `${options.apiUrl}?module=contract&action=getsourcecode&address=${address}&ignoreProxy=1`
     //console.debug(`Retrying contract verification[${counter}] for address ${address} at url: ${url}`)
 
     try {
